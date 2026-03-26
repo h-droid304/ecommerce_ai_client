@@ -32,11 +32,11 @@ function getCountdown(endDate) {
   return { hours, minutes, seconds };
 }
 
-export default function LandingPage() {
+export default function LandingPage({ theme, onToggleTheme }) {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [search, setSearch] = useState("");
-  const [cartCount, setCartCount] = useState(0);
+  const [cartItems, setCartItems] = useState([]);
   const [likedItems, setLikedItems] = useState([]);
   const [testimonialIndex, setTestimonialIndex] = useState(0);
   const [dealEndsAt] = useState(() => new Date(Date.now() + 9 * 60 * 60 * 1000));
@@ -72,6 +72,16 @@ export default function LandingPage() {
     });
   }, [selectedCategory, search]);
 
+  const cartCount = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
+    [cartItems]
+  );
+
+  const subtotal = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [cartItems]
+  );
+
   const featuredProduct = filteredProducts[0] || productData[0];
 
   const handleLike = (productId) => {
@@ -85,11 +95,49 @@ export default function LandingPage() {
     navigate("/login", { replace: true });
   };
 
+  const handleAddToCart = (product) => {
+    setCartItems((prev) => {
+      const found = prev.find((item) => item.id === product.id);
+      if (found) {
+        return prev.map((item) =>
+          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+
+      return [
+        ...prev,
+        {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+          quantity: 1,
+        },
+      ];
+    });
+  };
+
+  const handleGoToCheckout = () => {
+    navigate("/checkout", {
+      state: {
+        cartItems,
+        subtotal,
+      },
+    });
+  };
+
   return (
     <div className="landing-page">
       <header className="lp-header">
         <div className="lp-brand">NovaCart</div>
         <div className="lp-header-right">
+          <button className="app-link-btn" onClick={() => navigate("/about")}>About</button>
+          <button className="app-link-btn" onClick={handleGoToCheckout}>
+            Checkout ({cartCount})
+          </button>
+          <button className="theme-toggle" onClick={onToggleTheme}>
+            {theme === "light" ? "Dark" : "Light"} mode
+          </button>
           <p className="lp-greeting">Hi, {currentUser?.name || "Shopper"}</p>
           <button className="lp-outline-btn" onClick={handleLogout}>
             Logout
@@ -138,7 +186,7 @@ export default function LandingPage() {
             <h3>{featuredProduct.name}</h3>
             <p>Featured pick in {featuredProduct.category}</p>
             <button
-              onClick={() => setCartCount((prev) => prev + 1)}
+              onClick={() => handleAddToCart(featuredProduct)}
               className="lp-primary-btn"
             >
               Add to cart - ${featuredProduct.price}
@@ -192,7 +240,7 @@ export default function LandingPage() {
               <p className="lp-product-price">${product.price}</p>
               <div className="lp-product-footer">
                 <span>{product.rating} ★</span>
-                <button onClick={() => setCartCount((prev) => prev + 1)}>Add</button>
+                <button onClick={() => handleAddToCart(product)}>Add</button>
               </div>
             </div>
           </motion.article>
@@ -206,7 +254,12 @@ export default function LandingPage() {
             {timer.hours}:{timer.minutes}:{timer.seconds}
           </h3>
         </div>
-        <button className="lp-primary-btn">Claim Offer</button>
+        <div className="lp-deal-actions">
+          <span>Subtotal: ${subtotal.toFixed(2)}</span>
+          <button className="lp-primary-btn" onClick={handleGoToCheckout}>
+            Go to checkout
+          </button>
+        </div>
       </section>
 
       <section className="lp-testimonial-wrap">
